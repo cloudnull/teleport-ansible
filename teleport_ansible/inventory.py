@@ -88,6 +88,11 @@ def main():
         all_data["hosts"].append(hostname)
         all_data["hosts"] = sorted(set(all_data["hosts"]))
 
+        try:
+            node["metadata"]["labels"].items()
+        except KeyError:
+            node["metadata"]["labels"]={"nolabels": "true"}
+ 
         for k, v in node["metadata"]["labels"].items():
             try:
                 host_vars = meta_data[hostname]
