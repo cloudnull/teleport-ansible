@@ -62,37 +62,55 @@ def main():
     """
     # Presently using subprocess to get the node JSON, may revise this later.
     tsh_return = subprocess.run(
-        "tsh ls --all --format=json", shell=True, capture_output=True
+        "tsh ls --format=json", shell=True, capture_output=True
     )
+
     try:
         teleport_items = json.loads(tsh_return.stdout)
     except Exception:
         raise SystemExit("No inventory JSON data found. Check login via tsh.")
     else:
         if not teleport_items:
-            raise SystemExit(
-                "Nothing available via teleport, check login via tsh."
-            )
+            raise SystemExit("Nothing available via teleport, check login via tsh.")
+
+
+    # Run the tsh status command and capture the output
+    tsh_status_output = subprocess.run(["tsh", "status", "--format=json"], capture_output=True, text=True)
+
+    # Check if the command was successful
+    if tsh_status_output.returncode == 0:
+        try:
+            # Parse the JSON data
+            status_data = json.loads(tsh_status_output.stdout)
+
+            # Extract the value of the "cluster" key from the "active" section
+            cluster_value = status_data.get("active", {}).get("cluster")
+
+     #       if cluster_value:
+     #           print("Cluster Value:", cluster_value)
+     #       else:
+     #           print("No 'cluster' key found in the 'active' section of the tsh status output.")
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
+    else:
+        print(f"Error running 'tsh status' command. Return code: {tsh_status_output.returncode}")
 
     for item in teleport_items:
-        node = item["node"]
-        if node["kind"] != "node":
+        if item["kind"] != "node":
             continue
 
+        node = item
+        #hostname = node["metadata"]["name"]
         hostname = node["spec"]["hostname"]
 
-        _group_add(group_name=item["cluster"], hostname=hostname)
+        #_group_add(group_name=node["cluster"], hostname=hostname)
+        _group_add(group_name=cluster_value, hostname=hostname)
 
         meta_data = INVENTORY["_meta"]["hostvars"]
         all_data = INVENTORY["all"]
         all_data["hosts"].append(hostname)
         all_data["hosts"] = sorted(set(all_data["hosts"]))
 
-        try:
-            node["metadata"]["labels"].items()
-        except KeyError:
-            node["metadata"]["labels"]={"nolabels": "true"}
- 
         for k, v in node["metadata"]["labels"].items():
             try:
                 host_vars = meta_data[hostname]
