@@ -100,8 +100,8 @@ def main():
             # If a label is an ansible variable, omit it from groups
             if k.startswith("ansible_"):
                 continue
-
-            _group_add(group_name=v, hostname=hostname)
+            if v != '':
+                _group_add(group_name=v, hostname=hostname)
 
     print(json.dumps(INVENTORY, indent=4))
 
